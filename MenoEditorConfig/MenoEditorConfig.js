@@ -32,9 +32,17 @@ const cmdPanelStyles = {
     }
 }
 
-export {
+const stylesConfig = {
     inlineStylesMap,
+    cmdPanelStyles,
+}
+
+const cmdsConfig = {
     editingCmdInfo,
-    alteringCmdInfo,
-    cmdPanelStyles
+    alteringCmdInfo
+}
+
+export {
+    stylesConfig,
+    cmdsConfig
 };

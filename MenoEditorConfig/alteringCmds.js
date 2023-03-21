@@ -87,7 +87,6 @@ function toggleHighlight(editorState, commandRange, arg, editorTriggers, inlineA
 }
 
 const alteringCmdInfo = {
-    promptChar: '#',
     cmdsMap: {
         w: {
             isAsync: true,

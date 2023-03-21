@@ -14,35 +14,146 @@ import { OrderedSet } from 'immutable';
 // styles
 import 'draft-js/dist/Draft.css';
 
+// meno editor default styles
+const defaultInlineStylesMap = {};
+const defaultCmdInlineStyle = {
+    backgroundColor: 'rgba(133, 133, 173, .5)',
+    borderRadius: '3px'
+};
+const defaultCmdPanelStyles = {
+    cmdMask: {
+        backgroundColor: 'rgba(0, 0, 0, .5)'
+    },
+    cmdPanel: {
+        height: '50px',
+        position: 'absolute',
+        bottom: '0',
+        left: '0',
+        right: '0',
+        backgroundColor: 'rgba(255, 255, 255, .5)',
+    },
+    cmdInput: {
+        width: '100%',
+        height: '100%',
+        border: 'none',
+        outline: 'none',
+        backgroundColor: 'transparent'
+    }
+}
+
+function toggleImportant(editorState, commandRange, arg) {
+    if (!arg) {
+        throw new SyntaxError('h: important command need an argument');
+    }
+    const contentState = editorState.getCurrentContent();
+
+    const newEditorState = EditorState.push(
+        editorState,
+        Modifier.replaceText(
+            contentState,
+            commandRange,
+            arg,
+            OrderedSet.of('important')
+        ),
+        'change-inline-style'
+    );
+
+    return newEditorState;
+}
+
+// meno editor default commands
+const defaultEditingCmdInfo = {
+    promptChar: '$', 
+    cmdsMap: {
+        h: {
+            isAsync: false,
+            exec: toggleImportant
+        }
+    }
+}
+const defaultAlteringCmdInfo = {
+    promptChar: '#', 
+    cmdsMap: {}
+}
+
+// merge the styles config
+function createStylesConfig(userConfig) {
+    let inlineStylesMap, cmdInlineStyle, cmdPanelStyles;
+
+    if (userConfig) {
+        // when the config is defined, merge the default config with the user config
+        inlineStylesMap = {
+            ...defaultInlineStylesMap, 
+            ...userConfig.inlineStylesMap
+        };
+        cmdInlineStyle = {
+            ...defaultCmdInlineStyle, 
+            ...userConfig.cmdInlineStyle
+        };
+        cmdPanelStyles = {
+            ...defaultCmdPanelStyles, 
+            ...userConfig.cmdPanelStyles
+        };
+    } else {
+        // when the config is not defined, use the default config
+        inlineStylesMap = defaultInlineStylesMap;
+        cmdInlineStyle = defaultCmdInlineStyle;
+        cmdPanelStyles = defaultCmdPanelStyles;
+    }
+
+    return {
+        inlineStylesMap,
+        cmdInlineStyle,
+        cmdPanelStyles
+    };
+}
+
+// merge the commands config
+function createCmdsConfig(userConfig) {
+    let editingCmdInfo, alteringCmdInfo;
+
+    if (userConfig) {
+        // when the config is defined, merge the default config with the user config
+        // merge editing cmds map
+        const editingCmdsMap = {
+            ...defaultEditingCmdInfo.cmdsMap, 
+            ...userConfig.editingCmdInfo.cmdsMap
+        };
+        editingCmdInfo = {
+            ...defaultEditingCmdInfo,
+            ...userConfig.editingCmdInfo,
+            cmdsMap: editingCmdsMap
+        };
+        // merge altering cmds map
+        const alteringCmdsMap = {
+            ...defaultAlteringCmdInfo.cmdsMap,
+            ...userConfig.alteringCmdInfo.cmdsMap
+        };
+        alteringCmdInfo = {
+            ...defaultAlteringCmdInfo,
+            ...userConfig.alteringCmdInfo,
+            cmdsMap: alteringCmdsMap
+        };
+    } else {
+        // when the config is not defined, use the default config
+        editingCmdInfo = defaultEditingCmdInfo;
+        alteringCmdInfo = defaultAlteringCmdInfo;
+    }
+
+    return {
+        editingCmdInfo,
+        alteringCmdInfo
+    };
+}
+
 const MenoEditor = ({
     className, 
     initialContent = { blocks: [], entityMap: {} },
-    inlineStylesMap,
-    editingCmdInfo = { promptChar: '$', cmdsMap: {} },
-    alteringCmdInfo = { promptChar: '#', cmdsMap: {} },
-    cmdInlineStyle = {
-        backgroundColor: 'rgba(133, 133, 173, .5)',
-        borderRadius: '3px'
-    },
+    stylesConfig,
+    cmdsConfig,
     editorTriggers,
-    cmdPanelStyles = {
-        cmdMask: {
-            backgroundColor: 'rgba(0, 0, 0, .5)'
-        },
-        cmdPanel: {
-            height: '50px',
-            position: 'absolute',
-            bottom: '0',
-            left: '0',
-            right: '0',
-            backgroundColor: 'rgba(255, 255, 255, .5)',
-        },
-        cmdInput: {
-            width: '100%',
-            height: '100%',
-        }
-    },
-    stateRef // ref to the editor state
+    stateRef, // ref to the editor state
+    errHandler
 }) => {
     // init the editor content with raw content state and custom dependency map
     const [ editorState, setEditorState ] = useState(() => {
@@ -50,7 +161,22 @@ const MenoEditor = ({
         return EditorState.createWithContent(convertFromRaw(initialContent));
     });
     const [ showCmdPanel, setShowCmdPanel ] = useState(false);
-    
+
+    // get configs from props
+    if (!stylesConfig || !cmdsConfig) {
+        // throw an error when the config is not defined
+        throw new ReferenceError('h: MenoEditor need a stylesConfig and a cmdsConfig');
+    }
+    const {
+        inlineStylesMap,
+        cmdInlineStyle,
+        cmdPanelStyles,
+    } = stylesConfig;
+    const {
+        editingCmdInfo,
+        alteringCmdInfo
+    } = cmdsConfig;
+
     // ref to the editor state
     stateRef && (stateRef.current = editorState);
 
@@ -66,7 +192,7 @@ const MenoEditor = ({
         }
     }, [ showCmdPanel ]);
 
-    // show cmd panel
+    // delay show cmd panel
     useEffect(() => {
         if (openingCmdPanel.current) {
             setShowCmdPanel(true);
@@ -216,7 +342,7 @@ const MenoEditor = ({
 
         // full command is only the prompt char, do replace
         if (fullCmd === editingCmdInfo.promptChar) {
-            replaceWithPromptChar(fullCmd, commandRange);
+            replaceWithPromptChar(commandRange, editingCmdInfo.promptChar);
             return;
         }
 
@@ -232,7 +358,12 @@ const MenoEditor = ({
 
         if (!cmdInfo) {
             // command not found
-            alert(`editing command: ${command} not found`);
+            const err = new SyntaxError(`editing command: ${command} not found`);
+            if (errHandler) {
+                errHandler(err);
+            } else {
+                console.error(err);
+            }
             return;
         }
 
@@ -246,8 +377,8 @@ const MenoEditor = ({
         const commandRange = editorState.getSelection();
 
         // if full cmd is only the prompt character, do replace
-        if (fullCmd === alteringCmdInfo.promptChar) {
-            replaceWithPromptChar(fullCmd, commandRange);
+        if (fullCmd === alteringCmdInfo.promptChar + ' ') {
+            replaceWithPromptChar(commandRange, alteringCmdInfo.promptChar);
             // close the cmd panel
             setShowCmdPanel(false);
             return;
@@ -266,7 +397,12 @@ const MenoEditor = ({
 
         if (!cmdInfo) {
             // command not found
-            console.log(`altering command: ${command} not found`);
+            const err = new SyntaxError(`altering command: ${command} not found`);
+            if (errHandler) {
+                errHandler(err);
+            } else {
+                console.error(err);
+            }
             return;
         }
 
@@ -274,12 +410,16 @@ const MenoEditor = ({
         execCmd(true, cmdInfo, commandRange, arg, editorTriggers, inlineArg);
     }
 
-    function replaceWithPromptChar(promptChar, commandRange) {
+    // replace the selected range with the prompt char
+    // only when the full command is only the prompt char
+    function replaceWithPromptChar(commandRange, promptChar) {
         const newEditorState = EditorState.push(
             editorState,
             Modifier.replaceText(
                 editorState.getCurrentContent(),
-                commandRange,
+                commandRange.merge({
+                    hasFocus: true
+                }),
                 promptChar
             ),
             'change-block-data'
@@ -304,7 +444,11 @@ const MenoEditor = ({
                     }
                     throw new Error('something wrong with cmd logic');
                 } catch (error) {
-                    alert(error.message);
+                    if (errHandler) {
+                        errHandler(error);
+                    } else {
+                        console.error(error);
+                    }
                 }
             })();
         } else {
@@ -321,7 +465,11 @@ const MenoEditor = ({
                 }
                 throw new Error('something wrong with cmd logic');
             } catch (error) {
-                alert(error.message);
+                if (errHandler) {
+                    errHandler(error);
+                } else {
+                    console.error(error);
+                }
             }
         }
     }
@@ -474,4 +622,8 @@ const CmdPanel = ({ promptChar, onExec, styles, onExit }) => {
     );
 }
 
-export default MenoEditor;
+export {
+    MenoEditor,
+    createStylesConfig,
+    createCmdsConfig
+};

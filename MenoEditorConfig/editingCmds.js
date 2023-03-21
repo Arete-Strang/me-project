@@ -20,36 +20,12 @@ function toggleItalic(editorState, commandRange, arg) {
     return newEditorState;
 }
 
-function toggleImportant(editorState, commandRange, arg) {
-    if (!arg) {
-        throw new SyntaxError('h: important command need an argument');
-    }
-    const contentState = editorState.getCurrentContent();
-
-    const newEditorState = EditorState.push(
-        editorState,
-        Modifier.replaceText(
-            contentState,
-            commandRange,
-            arg,
-            OrderedSet.of('important')
-        ),
-        'change-inline-style'
-    );
-
-    return newEditorState;
-}
-
 const editingCmdInfo = {
     promptChar: '$',
     cmdsMap: {
         i: {
             isAsync: false,
             exec: toggleItalic
-        },
-        h: {
-            isAsync: false,
-            exec: toggleImportant
         }
     }
 };
