@@ -86,7 +86,8 @@ function toggleHighlight(editorState, commandRange, arg, editorTriggers, inlineA
     return newEditorState;
 }
 
-const alteringCmdInfo = {
+export default {
+    promptChar: '#',
     cmdsMap: {
         w: {
             isAsync: true,
@@ -101,6 +102,4 @@ const alteringCmdInfo = {
             exec: toggleHighlight
         }
     }
-};
-
-export default alteringCmdInfo;
+};;

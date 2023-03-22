@@ -1,7 +1,8 @@
-import editingCmdInfo from "./editingCmds";
-import alteringCmdInfo from "./alteringCmds";
+import defaultEditingCmdInfo from "./editingCmds";
+import defaultAlteringCmdInfo from "./alteringCmds";
 
-const inlineStylesMap = {
+// meno editor default styles
+const defaultInlineStylesMap = {
     italic: {
         fontStyle: 'italic'
     },
@@ -10,8 +11,11 @@ const inlineStylesMap = {
         borderRadius: '3px'
     }
 };
-
-const cmdPanelStyles = {
+const defaultCmdInlineStyle = {
+    backgroundColor: 'rgba(133, 133, 173, .5)',
+    borderRadius: '3px'
+};
+const defaultCmdPanelStyles = {
     cmdMask: {
         backgroundColor: 'rgba(0, 0, 0, .5)'
     },
@@ -21,28 +25,92 @@ const cmdPanelStyles = {
         bottom: '0',
         left: '0',
         right: '0',
-        backgroundColor: 'rgba(102, 102, 153, .5)',
+        backgroundColor: 'rgba(0, 0, 0, .5)',
     },
     cmdInput: {
         width: '100%',
         height: '100%',
         padding: '0 10px',
+        border: 'none',
+        outline: 'none',
+        color: '#d1e0e0',
         fontSize: '16px',
-        color: '#d1e0e0'
+        fontFamily: 'Fira Code, monospace',
+        backgroundColor: 'transparent'
     }
 }
 
-const stylesConfig = {
-    inlineStylesMap,
-    cmdPanelStyles,
+// merge the styles config
+function mergeStylesConfig(userConfig) {
+    let inlineStylesMap, cmdInlineStyle, cmdPanelStyles;
+
+    if (userConfig) {
+        // when the config is defined, merge the default config with the user config
+        inlineStylesMap = {
+            ...defaultInlineStylesMap, 
+            ...userConfig.inlineStylesMap
+        };
+        cmdInlineStyle = {
+            ...defaultCmdInlineStyle, 
+            ...userConfig.cmdInlineStyle
+        };
+        cmdPanelStyles = {
+            ...defaultCmdPanelStyles, 
+            ...userConfig.cmdPanelStyles
+        };
+    } else {
+        // when the config is not defined, use the default config
+        inlineStylesMap = defaultInlineStylesMap;
+        cmdInlineStyle = defaultCmdInlineStyle;
+        cmdPanelStyles = defaultCmdPanelStyles;
+    }
+
+    return {
+        inlineStylesMap,
+        cmdInlineStyle,
+        cmdPanelStyles
+    };
 }
 
-const cmdsConfig = {
-    editingCmdInfo,
-    alteringCmdInfo
+// merge the commands config
+function mergeCmdsConfig(userConfig) {
+    let editingCmdInfo, alteringCmdInfo;
+
+    if (userConfig) {
+        // when the config is defined, merge the default config with the user config
+        // merge editing cmds map
+        const editingCmdsMap = {
+            ...defaultEditingCmdInfo.cmdsMap, 
+            ...userConfig.editingCmdInfo.cmdsMap
+        };
+        editingCmdInfo = {
+            ...defaultEditingCmdInfo,
+            ...userConfig.editingCmdInfo,
+            cmdsMap: editingCmdsMap
+        };
+        // merge altering cmds map
+        const alteringCmdsMap = {
+            ...defaultAlteringCmdInfo.cmdsMap,
+            ...userConfig.alteringCmdInfo.cmdsMap
+        };
+        alteringCmdInfo = {
+            ...defaultAlteringCmdInfo,
+            ...userConfig.alteringCmdInfo,
+            cmdsMap: alteringCmdsMap
+        };
+    } else {
+        // when the config is not defined, use the default config
+        editingCmdInfo = defaultEditingCmdInfo;
+        alteringCmdInfo = defaultAlteringCmdInfo;
+    }
+
+    return {
+        editingCmdInfo,
+        alteringCmdInfo
+    };
 }
 
 export {
-    stylesConfig,
-    cmdsConfig
+    mergeStylesConfig,
+    mergeCmdsConfig
 };

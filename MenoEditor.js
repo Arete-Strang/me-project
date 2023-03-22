@@ -10,141 +10,10 @@ import {
 } from 'draft-js';
 import { useEffect, useRef, useState } from 'react';
 import { OrderedSet } from 'immutable';
+import { mergeStylesConfig, mergeCmdsConfig } from './MenoEditorConfig';
 
 // styles
 import 'draft-js/dist/Draft.css';
-
-// meno editor default styles
-const defaultInlineStylesMap = {};
-const defaultCmdInlineStyle = {
-    backgroundColor: 'rgba(133, 133, 173, .5)',
-    borderRadius: '3px'
-};
-const defaultCmdPanelStyles = {
-    cmdMask: {
-        backgroundColor: 'rgba(0, 0, 0, .5)'
-    },
-    cmdPanel: {
-        height: '50px',
-        position: 'absolute',
-        bottom: '0',
-        left: '0',
-        right: '0',
-        backgroundColor: 'rgba(255, 255, 255, .5)',
-    },
-    cmdInput: {
-        width: '100%',
-        height: '100%',
-        border: 'none',
-        outline: 'none',
-        backgroundColor: 'transparent'
-    }
-}
-
-function toggleImportant(editorState, commandRange, arg) {
-    if (!arg) {
-        throw new SyntaxError('h: important command need an argument');
-    }
-    const contentState = editorState.getCurrentContent();
-
-    const newEditorState = EditorState.push(
-        editorState,
-        Modifier.replaceText(
-            contentState,
-            commandRange,
-            arg,
-            OrderedSet.of('important')
-        ),
-        'change-inline-style'
-    );
-
-    return newEditorState;
-}
-
-// meno editor default commands
-const defaultEditingCmdInfo = {
-    promptChar: '$', 
-    cmdsMap: {
-        h: {
-            isAsync: false,
-            exec: toggleImportant
-        }
-    }
-}
-const defaultAlteringCmdInfo = {
-    promptChar: '#', 
-    cmdsMap: {}
-}
-
-// merge the styles config
-function createStylesConfig(userConfig) {
-    let inlineStylesMap, cmdInlineStyle, cmdPanelStyles;
-
-    if (userConfig) {
-        // when the config is defined, merge the default config with the user config
-        inlineStylesMap = {
-            ...defaultInlineStylesMap, 
-            ...userConfig.inlineStylesMap
-        };
-        cmdInlineStyle = {
-            ...defaultCmdInlineStyle, 
-            ...userConfig.cmdInlineStyle
-        };
-        cmdPanelStyles = {
-            ...defaultCmdPanelStyles, 
-            ...userConfig.cmdPanelStyles
-        };
-    } else {
-        // when the config is not defined, use the default config
-        inlineStylesMap = defaultInlineStylesMap;
-        cmdInlineStyle = defaultCmdInlineStyle;
-        cmdPanelStyles = defaultCmdPanelStyles;
-    }
-
-    return {
-        inlineStylesMap,
-        cmdInlineStyle,
-        cmdPanelStyles
-    };
-}
-
-// merge the commands config
-function createCmdsConfig(userConfig) {
-    let editingCmdInfo, alteringCmdInfo;
-
-    if (userConfig) {
-        // when the config is defined, merge the default config with the user config
-        // merge editing cmds map
-        const editingCmdsMap = {
-            ...defaultEditingCmdInfo.cmdsMap, 
-            ...userConfig.editingCmdInfo.cmdsMap
-        };
-        editingCmdInfo = {
-            ...defaultEditingCmdInfo,
-            ...userConfig.editingCmdInfo,
-            cmdsMap: editingCmdsMap
-        };
-        // merge altering cmds map
-        const alteringCmdsMap = {
-            ...defaultAlteringCmdInfo.cmdsMap,
-            ...userConfig.alteringCmdInfo.cmdsMap
-        };
-        alteringCmdInfo = {
-            ...defaultAlteringCmdInfo,
-            ...userConfig.alteringCmdInfo,
-            cmdsMap: alteringCmdsMap
-        };
-    } else {
-        // when the config is not defined, use the default config
-        editingCmdInfo = defaultEditingCmdInfo;
-        alteringCmdInfo = defaultAlteringCmdInfo;
-    }
-
-    return {
-        editingCmdInfo,
-        alteringCmdInfo
-    };
-}
 
 const MenoEditor = ({
     className, 
@@ -162,28 +31,34 @@ const MenoEditor = ({
     });
     const [ showCmdPanel, setShowCmdPanel ] = useState(false);
 
-    // get configs from props
-    if (!stylesConfig || !cmdsConfig) {
-        // throw an error when the config is not defined
-        throw new ReferenceError('h: MenoEditor need a stylesConfig and a cmdsConfig');
+    // merge configs
+    const _stylesConfig = useRef(null);
+    const _cmdsConfig = useRef(null);
+    // avoid merge config every render
+    if (!_stylesConfig.current) {
+        _stylesConfig.current = mergeStylesConfig(stylesConfig);
     }
+    if (!_cmdsConfig.current) {
+        _cmdsConfig.current = mergeCmdsConfig(cmdsConfig);
+    }
+    // extract styles and cmds config
     const {
         inlineStylesMap,
         cmdInlineStyle,
         cmdPanelStyles,
-    } = stylesConfig;
+    } = _stylesConfig.current;
     const {
         editingCmdInfo,
         alteringCmdInfo
-    } = cmdsConfig;
-
-    // ref to the editor state
-    stateRef && (stateRef.current = editorState);
+    } = _cmdsConfig.current;
 
     // editor focus control
     const editorRef = useRef(null);
     // cmd panel open control
     const openingCmdPanel = useRef(false);
+
+    // outer ref to the editor state
+    stateRef && (stateRef.current = editorState);
 
     // cmd panel blur and focus to editor
     useEffect(() => {
@@ -219,11 +94,6 @@ const MenoEditor = ({
 
         // typing cmd, do nothing with a new prompt char
         if (currentInlineStyle.has('cmdInlineStyle')) {
-            return 'not-handled';
-        }
-
-        // -------------cmd maps not defined, deal with it later----------------
-        if (!editingCmdInfo || !alteringCmdInfo) {
             return 'not-handled';
         }
 
@@ -495,7 +365,10 @@ const MenoEditor = ({
     return (
         <div 
             className={className}
-            style={{position: 'relative'}}
+            style={{
+                position: 'relative',
+                overflow: 'hidden'
+            }}
         >
             {showCmdPanel && 
                 <CmdMask
@@ -622,8 +495,4 @@ const CmdPanel = ({ promptChar, onExec, styles, onExit }) => {
     );
 }
 
-export {
-    MenoEditor,
-    createStylesConfig,
-    createCmdsConfig
-};
+export default MenoEditor;
