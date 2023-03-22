@@ -73,44 +73,54 @@ function mergeStylesConfig(userConfig) {
 }
 
 // merge the commands config
-function mergeCmdsConfig(userConfig) {
-    let editingCmdInfo, alteringCmdInfo;
+function mergeAlteringCmds(userConfig) {
+    let alteringCmdInfo;
+    
+    if (userConfig) {
+        // when the config is defined, merge the default config with the user config
+        // merge altering cmds map
+        const alteringCmdsMap = {
+            ...defaultAlteringCmdInfo.cmdsMap, 
+            ...userConfig.cmdsMap
+        };
+        alteringCmdInfo = {
+            ...defaultAlteringCmdInfo,
+            ...userConfig,
+            cmdsMap: alteringCmdsMap
+        };
+    } else {
+        // when the config is not defined, use the default config
+        alteringCmdInfo = defaultAlteringCmdInfo;
+    }
+
+    return alteringCmdInfo;
+}
+
+function mergeEditingCmds(userConfig) {
+    let editingCmdInfo;
 
     if (userConfig) {
         // when the config is defined, merge the default config with the user config
         // merge editing cmds map
         const editingCmdsMap = {
             ...defaultEditingCmdInfo.cmdsMap, 
-            ...userConfig.editingCmdInfo.cmdsMap
+            ...userConfig.cmdsMap
         };
         editingCmdInfo = {
             ...defaultEditingCmdInfo,
-            ...userConfig.editingCmdInfo,
+            ...userConfig,
             cmdsMap: editingCmdsMap
-        };
-        // merge altering cmds map
-        const alteringCmdsMap = {
-            ...defaultAlteringCmdInfo.cmdsMap,
-            ...userConfig.alteringCmdInfo.cmdsMap
-        };
-        alteringCmdInfo = {
-            ...defaultAlteringCmdInfo,
-            ...userConfig.alteringCmdInfo,
-            cmdsMap: alteringCmdsMap
         };
     } else {
         // when the config is not defined, use the default config
         editingCmdInfo = defaultEditingCmdInfo;
-        alteringCmdInfo = defaultAlteringCmdInfo;
     }
 
-    return {
-        editingCmdInfo,
-        alteringCmdInfo
-    };
+    return editingCmdInfo;
 }
 
 export {
     mergeStylesConfig,
-    mergeCmdsConfig
+    mergeEditingCmds,
+    mergeAlteringCmds
 };

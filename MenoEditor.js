@@ -6,42 +6,64 @@ import {
     Modifier,
     RichUtils,
     SelectionState,
-    getDefaultKeyBinding
+    getDefaultKeyBinding,
+    CompositeDecorator
 } from 'draft-js';
 import { useEffect, useRef, useState } from 'react';
 import { OrderedSet } from 'immutable';
-import { mergeStylesConfig, mergeCmdsConfig } from './MenoEditorConfig';
+import {
+    mergeStylesConfig, 
+    mergeEditingCmds, 
+    mergeAlteringCmds
+} from './MenoEditorConfig';
 
 // styles
 import 'draft-js/dist/Draft.css';
 
 const MenoEditor = ({
     className, 
+    // initial content state
     initialContent = { blocks: [], entityMap: {} },
+    // configs
     stylesConfig,
-    cmdsConfig,
+    editingCmdsConfig,
+    alteringCmdsConfig,
+    // outer triggers in order to communicate with parent component
     outerTriggers = {},
     saveTrigger,        // outer trigger to save the editor content
+    // error handler
     errHandler,
-    triggerClearRef,    // ref to the clear function
-    triggerSaveRef,     // ref to the save function
+    // inner hooks for outer use, say trigger save and clear
+    innerHooks,
+    // specifically for entities at the moment
+    decorators,
 }) => {
     // init the editor content with raw content state and custom dependency map
     const [ editorState, setEditorState ] = useState(() => {
         // only execute at mount
+        if (decorators) {
+            return EditorState.createWithContent(
+                convertFromRaw(initialContent), 
+                new CompositeDecorator(decorators)
+            );
+        }
         return EditorState.createWithContent(convertFromRaw(initialContent));
     });
     const [ showCmdPanel, setShowCmdPanel ] = useState(false);
 
     // merge configs
     const _stylesConfig = useRef(null);
-    const _cmdsConfig = useRef(null);
+    const _editingCmdsInfo = useRef(null);
+    const _alteringCmdsInfo = useRef(null);
     // avoid merge config every render
     if (!_stylesConfig.current) {
         _stylesConfig.current = mergeStylesConfig(stylesConfig);
     }
-    if (!_cmdsConfig.current) {
-        _cmdsConfig.current = mergeCmdsConfig(cmdsConfig);
+    if (!_editingCmdsInfo.current) {
+        _editingCmdsInfo.current = mergeEditingCmds(editingCmdsConfig);
+    }
+    if (!_alteringCmdsInfo.current) {
+        _alteringCmdsInfo.current = mergeAlteringCmds(alteringCmdsConfig);
     }
     // add save trigger into outer triggers
     outerTriggers.saveTrigger = saveTrigger;
@@ -52,26 +74,25 @@ const MenoEditor = ({
         cmdInlineStyle,
         cmdPanelStyles,
     } = _stylesConfig.current;
-    const {
-        editingCmdInfo,
-        alteringCmdInfo
-    } = _cmdsConfig.current;
+    const editingCmdsInfo = _editingCmdsInfo.current;
+    const alteringCmdsInfo = _alteringCmdsInfo.current;
 
     // editor focus control
     const editorRef = useRef(null);
     // cmd panel open control
     const openingCmdPanel = useRef(false);
 
-    // export trigger functions
-    if (triggerClearRef) {
-        triggerClearRef.current = () => {
-            setEditorState(EditorState.createEmpty());
-        };
-    }
-    if (triggerSaveRef) {
-        triggerSaveRef.current = () => {
-            alteringCmdInfo.cmdsMap['w']
-                .exec({ editorState, outerTriggers });
+    // export hook functions
+    if (innerHooks) {
+        innerHooks.current = {
+            save: () => {
+                execCmd(true, alteringCmdsInfo.cmdsMap['w'], {
+                    editorState, outerTriggers
+                });
+            },
+            clear: () => {
+                setEditorState(EditorState.createEmpty());
+            }
         }
     }
 
@@ -113,12 +134,12 @@ const MenoEditor = ({
         }
 
         // turn on editing cmd mode (cannot nest)
-        if (char === editingCmdInfo.promptChar) {
+        if (char === editingCmdsInfo.promptChar) {
             turnOnEditingCmdMode(editorState);
             return 'handled';
         }
         // turn on altering cmd mode (cannot nest)
-        if (char === alteringCmdInfo.promptChar) {
+        if (char === alteringCmdsInfo.promptChar) {
             turnOnAlteringCmdMode(editorState);
             return 'handled';
         }
@@ -133,7 +154,7 @@ const MenoEditor = ({
             Modifier.insertText(
                 editorState.getCurrentContent(), 
                 editorState.getSelection(), 
-                editingCmdInfo.promptChar, 
+                editingCmdsInfo.promptChar, 
                 OrderedSet.of('cmdInlineStyle')
             ),
             'insert-characters'
@@ -226,8 +247,8 @@ const MenoEditor = ({
             .substring(cmdRange.anchorOffset, cmdRange.focusOffset);
 
         // full command is only the prompt char, do replace
-        if (fullCmd === editingCmdInfo.promptChar) {
-            replaceWithPromptChar(cmdRange, editingCmdInfo.promptChar);
+        if (fullCmd === editingCmdsInfo.promptChar) {
+            replaceWithPromptChar(cmdRange, editingCmdsInfo.promptChar);
             return;
         }
 
@@ -239,7 +260,7 @@ const MenoEditor = ({
         command = command.substring(1);
 
         // get the info of the command
-        const cmdInfo = editingCmdInfo.cmdsMap[command];
+        const cmdInfo = editingCmdsInfo.cmdsMap[command];
 
         if (!cmdInfo) {
             // command not found
@@ -266,8 +287,8 @@ const MenoEditor = ({
         const cmdRange = editorState.getSelection();
 
         // if full cmd is only the prompt character, do replace
-        if (fullCmd === alteringCmdInfo.promptChar + ' ') {
-            replaceWithPromptChar(cmdRange, alteringCmdInfo.promptChar);
+        if (fullCmd === alteringCmdsInfo.promptChar + ' ') {
+            replaceWithPromptChar(cmdRange, alteringCmdsInfo.promptChar);
             // close the cmd panel
             setShowCmdPanel(false);
             return;
@@ -282,7 +303,7 @@ const MenoEditor = ({
             .substring(cmdRange.anchorOffset, cmdRange.focusOffset);
         
         // get the info of the command
-        const cmdInfo = alteringCmdInfo.cmdsMap[command];
+        const cmdInfo = alteringCmdsInfo.cmdsMap[command];
 
         if (!cmdInfo) {
             // command not found
@@ -401,7 +422,7 @@ const MenoEditor = ({
                 >
                     <CmdPanel 
                         onExit={blurCmdPanel}
-                        promptChar={alteringCmdInfo.promptChar} 
+                        promptChar={alteringCmdsInfo.promptChar} 
                         onExec={execAlteringCmd}
                         styles={cmdPanelStyles}
                     />
