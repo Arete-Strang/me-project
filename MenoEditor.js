@@ -20,10 +20,11 @@ const MenoEditor = ({
     initialContent = { blocks: [], entityMap: {} },
     stylesConfig,
     cmdsConfig,
-    editorTriggers,
-    stateRef,           // ref to the editor state
+    outerTriggers = {},
+    saveTrigger,        // outer trigger to save the editor content
     errHandler,
-    clearTriggerRef     // ref to the clear function
+    triggerClearRef,    // ref to the clear function
+    triggerSaveRef,     // ref to the save function
 }) => {
     // init the editor content with raw content state and custom dependency map
     const [ editorState, setEditorState ] = useState(() => {
@@ -42,6 +43,9 @@ const MenoEditor = ({
     if (!_cmdsConfig.current) {
         _cmdsConfig.current = mergeCmdsConfig(cmdsConfig);
     }
+    // add save trigger into outer triggers
+    outerTriggers.saveTrigger = saveTrigger;
+
     // extract styles and cmds config
     const {
         inlineStylesMap,
@@ -58,13 +62,17 @@ const MenoEditor = ({
     // cmd panel open control
     const openingCmdPanel = useRef(false);
 
-    // outer ref to the editor state
-    stateRef && (stateRef.current = editorState);
-    // export clear function
-    if (clearTriggerRef) {
-        clearTriggerRef.current = () => {
+    // export trigger functions
+    if (triggerClearRef) {
+        triggerClearRef.current = () => {
             setEditorState(EditorState.createEmpty());
         };
+    }
+    if (triggerSaveRef) {
+        triggerSaveRef.current = () => {
+            alteringCmdInfo.cmdsMap['w']
+                .exec({ editorState, outerTriggers });
+        }
     }
 
     // cmd panel blur and focus to editor
@@ -212,21 +220,21 @@ const MenoEditor = ({
         const contentBlock = editorState.getCurrentContent()
             .getBlockForKey(selectionState.anchorKey);
         // get the command range
-        const commandRange = getCurStyleRange(contentBlock, [ 'cmdInlineStyle' ]);
+        const cmdRange = getCurStyleRange(contentBlock, [ 'cmdInlineStyle' ]);
         // get full command
         const fullCmd = contentBlock.getText()
-            .substring(commandRange.anchorOffset, commandRange.focusOffset);
+            .substring(cmdRange.anchorOffset, cmdRange.focusOffset);
 
         // full command is only the prompt char, do replace
         if (fullCmd === editingCmdInfo.promptChar) {
-            replaceWithPromptChar(commandRange, editingCmdInfo.promptChar);
+            replaceWithPromptChar(cmdRange, editingCmdInfo.promptChar);
             return;
         }
 
         // get the command and arg
         let [ command, arg ] = contentBlock
             .getText()
-            .substring(commandRange.anchorOffset, commandRange.focusOffset)
+            .substring(cmdRange.anchorOffset, cmdRange.focusOffset)
             .split(':');
         command = command.substring(1);
 
@@ -245,17 +253,21 @@ const MenoEditor = ({
         }
 
         // execute the command
-        execCmd(false, cmdInfo, commandRange, arg, editorTriggers);
+        execCmd(false, cmdInfo, {
+            cmdRange, 
+            arg, 
+            outerTriggers
+        });
     }
     
     // exec the command typed in the cmd panel
     function execAlteringCmd(fullCmd) {
         let contentState = editorState.getCurrentContent();
-        const commandRange = editorState.getSelection();
+        const cmdRange = editorState.getSelection();
 
         // if full cmd is only the prompt character, do replace
         if (fullCmd === alteringCmdInfo.promptChar + ' ') {
-            replaceWithPromptChar(commandRange, alteringCmdInfo.promptChar);
+            replaceWithPromptChar(cmdRange, alteringCmdInfo.promptChar);
             // close the cmd panel
             setShowCmdPanel(false);
             return;
@@ -265,9 +277,9 @@ const MenoEditor = ({
         command = command.substring(2);
 
         const inlineArg = contentState
-            .getBlockForKey(commandRange.anchorKey)
+            .getBlockForKey(cmdRange.anchorKey)
             .getText()
-            .substring(commandRange.anchorOffset, commandRange.focusOffset);
+            .substring(cmdRange.anchorOffset, cmdRange.focusOffset);
         
         // get the info of the command
         const cmdInfo = alteringCmdInfo.cmdsMap[command];
@@ -284,7 +296,12 @@ const MenoEditor = ({
         }
 
         // execute the command
-        execCmd(true, cmdInfo, commandRange, arg, editorTriggers, inlineArg);
+        execCmd(true, cmdInfo, {
+            cmdRange, 
+            arg, 
+            outerTriggers, 
+            inlineArg
+        });
     }
 
     // replace the selected range with the prompt char
@@ -304,13 +321,13 @@ const MenoEditor = ({
         setEditorState(newEditorState);
     }
 
-    function execCmd(isAlteringCmd, cmdInfo, ...args) {
+    function execCmd(isAlteringCmd, cmdInfo, argObj) {
         // check the function type
         if (cmdInfo.isAsync) {
             // async function
             (async () => {
                 try {
-                    const newEditorState = await cmdInfo.exec(editorState, ...args);
+                    const newEditorState = await cmdInfo.exec({ editorState, ...argObj });
                     if (newEditorState) {
                         setEditorState(newEditorState);
                         if (isAlteringCmd) {
@@ -331,7 +348,7 @@ const MenoEditor = ({
         } else {
             // sync function
             try {
-                const newEditorState = cmdInfo.exec(editorState, ...args);
+                const newEditorState = cmdInfo.exec({ editorState, ...argObj });
                 if (newEditorState) {
                     setEditorState(newEditorState);
                     if (isAlteringCmd) {

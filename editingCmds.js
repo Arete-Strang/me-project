@@ -1,7 +1,7 @@
 import { EditorState, Modifier } from 'draft-js';
 import { OrderedSet } from 'immutable';
 
-function toggleItalic(editorState, commandRange, arg) {
+function toggleItalic({ editorState, cmdRange, arg }) {
     if (!arg) {
         throw new SyntaxError('i: italic command need an argument');
     }
@@ -10,7 +10,7 @@ function toggleItalic(editorState, commandRange, arg) {
         editorState,
         Modifier.replaceText(
             contentState,
-            commandRange,
+            cmdRange,
             arg,
             OrderedSet.of('italic')
         ),
@@ -20,7 +20,7 @@ function toggleItalic(editorState, commandRange, arg) {
 }
 
 
-function toggleImportant(editorState, commandRange, arg) {
+function toggleImportant({ editorState, cmdRange, arg }) {
     if (!arg) {
         throw new SyntaxError('h: important command need an argument');
     }
@@ -30,7 +30,7 @@ function toggleImportant(editorState, commandRange, arg) {
         editorState,
         Modifier.replaceText(
             contentState,
-            commandRange,
+            cmdRange,
             arg,
             OrderedSet.of('important')
         ),

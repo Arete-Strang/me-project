@@ -1,23 +1,20 @@
 import { convertToRaw, EditorState, Modifier } from 'draft-js';
 import { OrderedSet } from 'immutable';
 
-async function writeFile(editorState, commandRange, arg, editorTriggers) {
+async function writeFile({ editorState, outerTriggers }) {
     try {
-        if (!editorTriggers.onSave) {
-            throw new Error('w: onSave is not defined.');
+        if (!outerTriggers.saveTrigger) {
+            throw new Error('w: saveTrigger is not defined.');
         }
         const rawContent = convertToRaw(editorState.getCurrentContent());
-        const res = await editorTriggers.onSave(rawContent);
-        if (res.code !== 0) {
-            throw new Error(res.message);
-        }
+        await outerTriggers.saveTrigger(rawContent);
         return editorState;
     } catch (error) {
         throw error;
     }
 }
 
-function changeBlockType(editorState, commandRange, arg) {
+function changeBlockType({ editorState, cmdRange, arg }) {
     let blockType;
     switch (arg) {
         case 'p':
@@ -62,7 +59,7 @@ function changeBlockType(editorState, commandRange, arg) {
         editorState,
         Modifier.setBlockType(
             editorState.getCurrentContent(),
-            commandRange,
+            cmdRange,
             blockType
         ),
         'change-block-type'
@@ -71,13 +68,13 @@ function changeBlockType(editorState, commandRange, arg) {
     return newEditorState;
 }
 
-function toggleHighlight(editorState, commandRange, arg, editorTriggers, inlineArg) {
+function toggleHighlight({ editorState, cmdRange, inlineArg }) {
     const contentState = editorState.getCurrentContent();
     const newEditorState = EditorState.push(
         editorState,
         Modifier.replaceText(
             contentState,
-            commandRange,
+            cmdRange,
             inlineArg,
             OrderedSet.of('important')
         ),
