@@ -21,8 +21,9 @@ const MenoEditor = ({
     stylesConfig,
     cmdsConfig,
     editorTriggers,
-    stateRef, // ref to the editor state
-    errHandler
+    stateRef,           // ref to the editor state
+    errHandler,
+    clearTriggerRef     // ref to the clear function
 }) => {
     // init the editor content with raw content state and custom dependency map
     const [ editorState, setEditorState ] = useState(() => {
@@ -59,6 +60,12 @@ const MenoEditor = ({
 
     // outer ref to the editor state
     stateRef && (stateRef.current = editorState);
+    // export clear function
+    if (clearTriggerRef) {
+        clearTriggerRef.current = () => {
+            setEditorState(EditorState.createEmpty());
+        };
+    }
 
     // cmd panel blur and focus to editor
     useEffect(() => {
