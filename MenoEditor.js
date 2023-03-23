@@ -351,13 +351,11 @@ const MenoEditor = ({
                     const newEditorState = await cmdInfo.exec({ editorState, ...argObj });
                     if (newEditorState) {
                         setEditorState(newEditorState);
-                        if (isAlteringCmd) {
-                            // close the cmd panel when altering cmd success
-                            setShowCmdPanel(false);
-                        }
-                        return;
                     }
-                    throw new Error('something wrong with cmd logic');
+                    if (isAlteringCmd) {
+                        // close the cmd panel when altering cmd success
+                        setShowCmdPanel(false);
+                    }
                 } catch (error) {
                     if (errHandler) {
                         errHandler(error);
@@ -372,13 +370,11 @@ const MenoEditor = ({
                 const newEditorState = cmdInfo.exec({ editorState, ...argObj });
                 if (newEditorState) {
                     setEditorState(newEditorState);
-                    if (isAlteringCmd) {
-                        // close the cmd panel when altering cmd success
-                        setShowCmdPanel(false);
-                    }
-                    return;
                 }
-                throw new Error('something wrong with cmd logic');
+                if (isAlteringCmd) {
+                    // close the cmd panel when altering cmd success
+                    setShowCmdPanel(false);
+                }
             } catch (error) {
                 if (errHandler) {
                     errHandler(error);

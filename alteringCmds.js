@@ -8,7 +8,7 @@ async function writeFile({ editorState, outerTriggers }) {
         }
         const rawContent = convertToRaw(editorState.getCurrentContent());
         await outerTriggers.saveTrigger(rawContent);
-        return editorState;
+        return null;
     } catch (error) {
         throw error;
     }
