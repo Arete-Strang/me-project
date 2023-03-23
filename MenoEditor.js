@@ -92,9 +92,7 @@ const MenoEditor = ({
     if (innerHooks) {
         innerHooks.current = {
             save: () => {
-                execCmd(true, alteringCmdsInfo.cmdsMap['w'], {
-                    editorState, outerTriggers
-                });
+                execCmd(true, alteringCmdsInfo.cmdsMap['w'], outerTriggers);
             },
             setContent: (rawContent) => {
                 const newEditorState = genStateFromRaw(rawContent, decorators);
@@ -281,10 +279,9 @@ const MenoEditor = ({
         }
 
         // execute the command
-        execCmd(false, cmdInfo, {
+        execCmd(false, cmdInfo, outerTriggers, {
             cmdRange, 
-            arg, 
-            outerTriggers
+            arg
         });
     }
     
@@ -324,10 +321,9 @@ const MenoEditor = ({
         }
 
         // execute the command
-        execCmd(true, cmdInfo, {
+        execCmd(true, cmdInfo, outerTriggers, {
             cmdRange, 
             arg, 
-            outerTriggers, 
             inlineArg
         });
     }
@@ -349,13 +345,16 @@ const MenoEditor = ({
         setEditorState(newEditorState);
     }
 
-    function execCmd(isAlteringCmd, cmdInfo, argObj) {
+    function execCmd(isAlteringCmd, cmdInfo, outerTriggers, argObj) {
         // check the function type
         if (cmdInfo.isAsync) {
             // async function
             (async () => {
                 try {
-                    const newEditorState = await cmdInfo.exec({ editorState, ...argObj });
+                    const newEditorState = await cmdInfo.exec(
+                        { editorState, ...argObj },
+                        outerTriggers
+                    );
                     if (newEditorState) {
                         setEditorState(newEditorState);
                     }
@@ -374,7 +373,10 @@ const MenoEditor = ({
         } else {
             // sync function
             try {
-                const newEditorState = cmdInfo.exec({ editorState, ...argObj });
+                const newEditorState = cmdInfo.exec(
+                    { editorState, ...argObj },
+                    outerTriggers
+                );
                 if (newEditorState) {
                     setEditorState(newEditorState);
                 }

@@ -1,13 +1,13 @@
 import { convertToRaw, EditorState, Modifier } from 'draft-js';
 import { OrderedSet } from 'immutable';
 
-async function writeFile({ editorState, outerTriggers }) {
+async function writeFile({ editorState }, { saveTrigger }) {
     try {
-        if (!outerTriggers.saveTrigger) {
+        if (!saveTrigger) {
             throw new Error('w: saveTrigger is not defined.');
         }
         const rawContent = convertToRaw(editorState.getCurrentContent());
-        await outerTriggers.saveTrigger(rawContent);
+        await saveTrigger(rawContent);
         return null;
     } catch (error) {
         throw error;
