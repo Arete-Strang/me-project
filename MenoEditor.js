@@ -20,10 +20,22 @@ import {
 // styles
 import 'draft-js/dist/Draft.css';
 
+function genStateFromRaw(rawContent, decorators) {
+    // default to empty content
+    const content = rawContent || { blocks: [], entityMap: {} };
+    if (decorators) {
+        return EditorState.createWithContent(
+            convertFromRaw(content), 
+            new CompositeDecorator(decorators)
+        );
+    }
+    return EditorState.createWithContent(convertFromRaw(content));
+}
+
 const MenoEditor = ({
     className, 
     // initial content state
-    initialContent = { blocks: [], entityMap: {} },
+    initialContent,
     // configs
     stylesConfig,
     editingCmdsConfig,
@@ -41,13 +53,7 @@ const MenoEditor = ({
     // init the editor content with raw content state and custom dependency map
     const [ editorState, setEditorState ] = useState(() => {
         // only execute at mount
-        if (decorators) {
-            return EditorState.createWithContent(
-                convertFromRaw(initialContent), 
-                new CompositeDecorator(decorators)
-            );
-        }
-        return EditorState.createWithContent(convertFromRaw(initialContent));
+        return genStateFromRaw(initialContent, decorators);
     });
     const [ showCmdPanel, setShowCmdPanel ] = useState(false);
 
@@ -90,8 +96,9 @@ const MenoEditor = ({
                     editorState, outerTriggers
                 });
             },
-            clear: () => {
-                setEditorState(EditorState.createEmpty());
+            setContent: (rawContent) => {
+                const newEditorState = genStateFromRaw(rawContent, decorators);
+                setEditorState(newEditorState);
             }
         }
     }
