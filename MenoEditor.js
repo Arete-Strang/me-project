@@ -1,36 +1,26 @@
 // modules
 import {
-    convertFromRaw,
     Editor,
     EditorState,
     Modifier,
     RichUtils,
     SelectionState,
     getDefaultKeyBinding,
-    CompositeDecorator
 } from 'draft-js';
 import { useEffect, useRef, useState } from 'react';
 import { OrderedSet } from 'immutable';
 import {
+    replaceText,
+    genStateFromRaw
+} from './MeFacilities';
+import {
     mergeStylesConfig, 
     mergeEditingCmds, 
     mergeAlteringCmds
-} from './MenoEditorConfig';
+} from './MeConfig';
 
 // styles
 import 'draft-js/dist/Draft.css';
-
-function genStateFromRaw(rawContent, decorators) {
-    // default to empty content
-    const content = rawContent || { blocks: [], entityMap: {} };
-    if (decorators) {
-        return EditorState.createWithContent(
-            convertFromRaw(content), 
-            new CompositeDecorator(decorators)
-        );
-    }
-    return EditorState.createWithContent(convertFromRaw(content));
-}
 
 const MenoEditor = ({
     className, 
@@ -331,16 +321,12 @@ const MenoEditor = ({
     // replace the selected range with the prompt char
     // only when the full command is only the prompt char
     function replaceWithPromptChar(commandRange, promptChar) {
-        const newEditorState = EditorState.push(
+        const newEditorState = replaceText(
             editorState,
-            Modifier.replaceText(
-                editorState.getCurrentContent(),
-                commandRange.merge({
-                    hasFocus: true
-                }),
-                promptChar
-            ),
-            'change-block-data'
+            commandRange.merge({
+                hasFocus: true
+            }),
+            promptChar
         );
         setEditorState(newEditorState);
     }
@@ -482,6 +468,7 @@ function getCurStyleRange(blockState, inlineStyles) {
 }
 
 const CmdMask = ({ children, style, onClick }) => {
+    // mask always covers the whole editor
     const innerStyle = {
         position: 'absolute',
         top: 0,

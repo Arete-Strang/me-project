@@ -1,42 +1,20 @@
 import { EditorState, Modifier } from 'draft-js';
 import { OrderedSet } from 'immutable';
+import { replaceText } from './MeFacilities';
 
 function toggleItalic({ editorState, cmdRange, arg }) {
     if (!arg) {
         throw new SyntaxError('i: italic command need an argument');
     }
-    const contentState = editorState.getCurrentContent();
-    const newEditorState = EditorState.push(
-        editorState,
-        Modifier.replaceText(
-            contentState,
-            cmdRange,
-            arg,
-            OrderedSet.of('italic')
-        ),
-        'change-inline-style'
-    );
+    const newEditorState = replaceText(editorState, cmdRange, arg, 'italic');
     return newEditorState;
 }
-
 
 function toggleImportant({ editorState, cmdRange, arg }) {
     if (!arg) {
         throw new SyntaxError('h: important command need an argument');
     }
-    const contentState = editorState.getCurrentContent();
-
-    const newEditorState = EditorState.push(
-        editorState,
-        Modifier.replaceText(
-            contentState,
-            cmdRange,
-            arg,
-            OrderedSet.of('important')
-        ),
-        'change-inline-style'
-    );
-
+    const newEditorState = replaceText(editorState, cmdRange, arg, 'important');
     return newEditorState;
 }
 

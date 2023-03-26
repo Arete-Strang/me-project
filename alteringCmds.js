@@ -1,5 +1,6 @@
 import { convertToRaw, EditorState, Modifier } from 'draft-js';
 import { OrderedSet } from 'immutable';
+import { replaceText } from './MeFacilities';
 
 async function writeFile({ editorState }, { saveTrigger }) {
     try {
